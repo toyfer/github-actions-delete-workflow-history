@@ -1,50 +1,57 @@
 name: Delete workflow runs
+
 on:
   workflow_dispatch:
   push:
+
 jobs:
   delete-runs:
     runs-on: ubuntu-latest
     env:
       REPO_NAME: ${{ secrets.REPO_NAME }}
       REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+      
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/github-script@v6
-      with:
-        script: |
-          // getOctokit メソッドで GitHub オブジェクトを作成
-          const github = getOctokit(process.env.REPO_TOKEN);
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Delete workflow runs
+        run: |
+          const { Octokit } = require("@octokit/rest");
           
-          // リポジトリの名前をプライベート環境変数から取得
-          const repo = process.env.REPO_NAME;
-          
-          // ワークフローのIDを取得
-          const workflows = await github.actions.listRepoWorkflows({
-            owner: context.repo.owner,
-            repo: repo,
-          });
-          const workflowIds = workflows.data.workflows.map(wf => wf.id);
-          
-          // 各ワークフローの実行履歴を取得
-          for (const id of workflowIds) {
-            const runs = await github.actions.listWorkflowRuns({
+          async function deleteWorkflowRuns() {
+            const octokit = new Octokit({ auth: process.env.REPO_TOKEN });
+            const repo = process.env.REPO_NAME;
+            
+            // ワークフローのIDを取得
+            const workflows = await octokit.actions.listRepoWorkflows({
               owner: context.repo.owner,
               repo: repo,
-              workflow_id: id,
-              per_page: 100, // 1ページあたりの最大数
             });
+            const workflowIds = workflows.data.workflows.map(wf => wf.id);
             
-            // 実行履歴のIDを取得
-            const runIds = runs.data.workflow_runs.map(run => run.id);
-            
-            // 各実行履歴を削除
-            for (const runId of runIds) {
-              await github.actions.deleteWorkflowRun({
+            // 各ワークフローの実行履歴を削除
+            for (const id of workflowIds) {
+              const runs = await octokit.actions.listWorkflowRuns({
                 owner: context.repo.owner,
                 repo: repo,
-                run_id: runId,
+                workflow_id: id,
+                per_page: 100, // 1ページあたりの最大数
               });
-              console.log(`Deleted run ${runId}`);
+              
+              // 実行履歴のIDを取得
+              const runIds = runs.data.workflow_runs.map(run => run.id);
+              
+              // 各実行履歴を削除
+              for (const runId of runIds) {
+                await octokit.actions.deleteWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: repo,
+                  run_id: runId,
+                });
+                console.log(`Deleted run ${runId}`);
+              }
             }
           }
+          
+          deleteWorkflowRuns();
