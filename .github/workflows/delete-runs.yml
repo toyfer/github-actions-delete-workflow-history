@@ -1,6 +1,7 @@
 name: Delete workflow runs
 on:
   workflow_dispatch:
+  push:
 jobs:
   delete-runs:
     runs-on: ubuntu-latest
@@ -12,8 +13,8 @@ jobs:
     - uses: actions/github-script@v6
       with:
         script: |
-          // GitHub オブジェクトを作成する必要はありません
-          // const github = github.getOctokit(process.env.REPO_TOKEN);
+          // getOctokit メソッドで GitHub オブジェクトを作成
+          const github = getOctokit(process.env.REPO_TOKEN);
           
           // リポジトリの名前をプライベート環境変数から取得
           const repo = process.env.REPO_NAME;
