@@ -23,11 +23,13 @@ jobs:
           
           async function deleteWorkflowRuns() {
             const octokit = new Octokit({ auth: process.env.REPO_TOKEN });
-            const repo = process.env.REPO_NAME;
+            const repoParts = process.env.GITHUB_REPOSITORY.split("/");
+            const owner = repoParts[0];
+            const repo = repoParts[1];
             
             // ワークフローのIDを取得
             const workflows = await octokit.actions.listRepoWorkflows({
-              owner: context.repo.owner,
+              owner: owner,
               repo: repo,
             });
             const workflowIds = workflows.data.workflows.map(wf => wf.id);
@@ -35,7 +37,7 @@ jobs:
             // 各ワークフローの実行履歴を削除
             for (const id of workflowIds) {
               const runs = await octokit.actions.listWorkflowRuns({
-                owner: context.repo.owner,
+                owner: owner,
                 repo: repo,
                 workflow_id: id,
                 per_page: 100, // 1ページあたりの最大数
@@ -47,7 +49,7 @@ jobs:
               // 各実行履歴を削除
               for (const runId of runIds) {
                 await octokit.actions.deleteWorkflowRun({
-                  owner: context.repo.owner,
+                  owner: owner,
                   repo: repo,
                   run_id: runId,
                 });
