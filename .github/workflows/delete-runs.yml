@@ -17,6 +17,8 @@ jobs:
       
       - name: Delete workflow runs
         run: |
+          npm install @octokit/rest
+          node -e '
           const { Octokit } = require("@octokit/rest");
           
           async function deleteWorkflowRuns() {
@@ -55,3 +57,4 @@ jobs:
           }
           
           deleteWorkflowRuns();
+          '
