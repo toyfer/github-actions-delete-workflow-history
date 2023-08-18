@@ -4,11 +4,17 @@ on:
 jobs:
   delete-runs:
     runs-on: ubuntu-latest
+    env:
+      REPO_NAME: ${{ secrets.REPO_NAME }}
+      REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
     steps:
     - uses: actions/checkout@v2
     - uses: actions/github-script@v4
       with:
         script: |
+          // GitHub オブジェクトを作成
+          const github = github.getOctokit(process.env.REPO_TOKEN);
+          
           // リポジトリの名前をプライベート環境変数から取得
           const repo = process.env.REPO_NAME;
           
