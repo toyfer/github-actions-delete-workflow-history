@@ -1,62 +1,40 @@
+# ワークフロー名
 name: Delete workflow runs
 
+# トリガー
 on:
+  # 手動で実行する
   workflow_dispatch:
-  push:
 
+# ジョブ
 jobs:
   delete-runs:
+    # 実行環境
     runs-on: ubuntu-latest
-    env:
-      REPO_NAME: ${{ secrets.REPO_NAME }}
-      REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
-      
+    # ステップ
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      
-      - name: Delete workflow runs
+      # GitHub CLIのインストール
+      - name: Install GitHub CLI
         run: |
-          npm install @octokit/rest
-          node -e '
-          const { Octokit } = require("@octokit/rest");
-          
-          async function deleteWorkflowRuns() {
-            const octokit = new Octokit({ auth: process.env.REPO_TOKEN });
-            const repoParts = process.env.GITHUB_REPOSITORY.split("/");
-            const owner = repoParts[0];
-            const repo = repoParts[1];
-            
-            // ワークフローのIDを取得
-            const workflows = await octokit.actions.listRepoWorkflows({
-              owner: owner,
-              repo: repo,
-            });
-            const workflowIds = workflows.data.workflows.map(wf => wf.id);
-            
-            // 各ワークフローの実行履歴を削除
-            for (const id of workflowIds) {
-              const runs = await octokit.actions.listWorkflowRuns({
-                owner: owner,
-                repo: repo,
-                workflow_id: id,
-                per_page: 100, // 1ページあたりの最大数
-              });
-              
-              // 実行履歴のIDを取得
-              const runIds = runs.data.workflow_runs.map(run => run.id);
-              
-              // 各実行履歴を削除
-              for (const runId of runIds) {
-                await octokit.actions.deleteWorkflowRun({
-                  owner: owner,
-                  repo: repo,
-                  run_id: runId,
-                });
-                console.log(`Deleted run ${runId}`);
-              }
-            }
-          }
-          
-          deleteWorkflowRuns();
-          '
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+          sudo apt-add-repository https://cli.github.com/packages
+          sudo apt update
+          sudo apt install gh
+
+      # ワークフロー実行履歴の削除
+      - name: Delete workflow runs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHubのアクセストークン（Secretsから取得）
+        run: |
+          # リポジトリ名とワークフロー名を動的に取得（環境変数やコンテキストから取得）
+          owner="${{ github.repository_owner }}"
+          repo="${{ github.repository }}"
+          file_name="${{ github.workflow }}"
+
+          # ワークフロー実行履歴のIDを取得して削除するコマンドを生成
+          gh api "repos/$owner/$repo/actions/workflows/$file_name/runs?per_page=100" \
+          | jq -r '.workflow_runs[].id' \
+          | xargs -I{} echo "gh api repos/$owner/$repo/actions/runs/{} -X DELETE" > delete.sh
+
+          # コマンドを実行してワークフロー実行履歴を削除
+          bash delete.sh
